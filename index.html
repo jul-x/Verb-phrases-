@@ -1,152 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Verb-Phrase Matcher</title>
+    <title>Verb Match Game</title>
     <style>
         :root {
-            --bg: #0a0e14;
-            --verb-color: #00d2ff;
-            --phrase-color: #ff0076;
-            --success: #00ff88;
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --accent-color: #ff9a9e;
         }
 
         body {
             margin: 0;
-            background-color: var(--bg);
-            color: white;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            height: 100vh;
+            padding: 0;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+            background: var(--primary-gradient);
+            font-family: 'Segoe UI', sans-serif;
             overflow: hidden;
             touch-action: none;
         }
 
-        header {
-            text-align: center;
-            padding: 15px;
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(10px);
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 20px;
+            box-sizing: border-box;
         }
 
-        #game-container {
-            flex-grow: 1;
-            position: relative;
+        #game-area {
             display: flex;
             justify-content: space-between;
-            padding: 20px 30px;
-            align-items: stretch;
-        }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            z-index: 5;
+            width: 100%;
+            max-width: 500px;
+            flex-grow: 1;
         }
 
         .column {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            z-index: 10;
-            width: 42%;
+            justify-content: space-between; /* Распределяет карточки по всей высоте */
+            width: 46%;
+            height: 82vh; 
         }
 
         .item {
-            padding: 14px 10px;
-            background: rgba(255, 255, 255, 0.06);
-            border: none; /* Убраны вертикальные полосы */
-            border-radius: 12px;
+            background: var(--card-bg);
+            color: #333;
+            padding: 10px;
+            border-radius: 15px;
             cursor: pointer;
-            text-align: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            user-select: none;
+            font-weight: bold;
             font-size: 14px;
-            font-weight: 500;
-            position: relative;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 50px;
+            min-height: 45px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            user-select: none;
         }
 
         .item.selected {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--accent-color);
+            color: white;
             transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
         }
 
         .item.matched {
-            background: rgba(0, 255, 136, 0.1);
-            color: var(--success);
+            opacity: 0.3;
+            background: #d1d1d1;
+            color: #888;
             pointer-events: none;
+            box-shadow: none;
         }
 
-        /* Точки для соединения */
-        .dot {
-            width: 8px;
-            height: 8px;
+        .controls {
+            padding: 15px 0 25px;
+        }
+
+        .btn {
             background: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0.5;
-        }
-        .verb .dot { right: -15px; }
-        .phrase .dot { left: -15px; }
-
-        #win-message {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #fff;
-            color: #000;
-            padding: 40px;
-            border-radius: 30px;
-            display: none;
-            z-index: 100;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-
-        .btn-restart {
-            margin-top: 20px;
-            padding: 12px 25px;
-            background: var(--success);
+            color: #764ba2;
             border: none;
-            border-radius: 10px;
+            padding: 12px 45px;
+            border-radius: 50px;
             font-weight: bold;
             cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
 
-<header>
-    <h2 style="margin:0; font-size: 1.1rem; letter-spacing: 1px;">MATCH THE PAIRS</h2>
-</header>
-
-<div id="game-container">
-    <canvas id="canvas"></canvas>
+<div class="container">
+    <div id="game-area">
+        <div class="column" id="verbs-col"></div>
+        <div class="column" id="phrases-col"></div>
+    </div>
     
-    <div class="column" id="verbs-col"></div>
-    <div class="column" id="phrases-col"></div>
-</div>
-
-<div id="win-message">
-    <h1 style="margin: 0 0 10px;">EXCELLENT! 🌟</h1>
-    <p>All pairs are correct.</p>
-    <button class="btn-restart" onclick="location.reload()">Try Again</button>
+    <div class="controls">
+        <button class="btn" onclick="location.reload()">RESET GAME</button>
+    </div>
 </div>
 
 <script>
-    // Обновленные пары согласно вашему новому списку
+    // Правильные пары для логики
     const pairs = [
         { v: "invite", p: "somebody to dinner" },
         { v: "meet", p: "in a coffee bar" },
@@ -159,100 +124,60 @@
         { v: "try", p: "to stop" }
     ];
 
-    // Глаголы (по порядку)
-    const verbsList = ["invite", "meet", "take", "knock", "play", "run", "be", "wait", "try"];
+    // Глаголы по порядку
+    const verbs = ["invite", "meet", "take", "knock", "play", "run", "be", "wait", "try"];
     
-    // Фразы (перемешаны так, чтобы правильные ответы были далеко)
-    const phrasesList = ["for somebody", "to stop", "in a hurry", "across the road", "a song", "on the door", "somebody to a restaurant", "in a coffee bar", "somebody to dinner"];
+    // Фразы перемешаны так, чтобы пары стояли максимально далеко друг от друга
+    const phrases = [
+        "for somebody",           // пара для wait (8-я строка)
+        "to stop",                // пара для try (9-я строка)
+        "in a hurry",             // пара для be (7-я строка)
+        "across the road",        // пара для run (6-я строка)
+        "somebody to dinner",     // пара для invite (1-я строка) — МАКСИМАЛЬНО ДАЛЕКО
+        "a song",                 // пара для play (5-я строка)
+        "on the door",            // пара для knock (4-я строка)
+        "somebody to a restaurant", // пара для take (3-я строка)
+        "in a coffee bar"         // пара для meet (2-я строка)
+    ];
 
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    let selectedVerb = null;
-    let completedMatches = [];
+    let selected = null;
 
     function init() {
         const vCol = document.getElementById('verbs-col');
         const pCol = document.getElementById('phrases-col');
 
-        verbsList.forEach(v => {
-            const div = document.createElement('div');
-            div.className = 'item verb';
-            div.innerHTML = `${v} <div class="dot"></div>`;
-            div.onclick = () => selectVerb(div, v);
-            vCol.appendChild(div);
+        verbs.forEach(v => {
+            const el = document.createElement('div');
+            el.className = 'item verb';
+            el.textContent = v;
+            el.onclick = () => {
+                document.querySelectorAll('.verb').forEach(i => i.classList.remove('selected'));
+                el.classList.add('selected');
+                selected = { el, val: v };
+            };
+            vCol.appendChild(el);
         });
 
-        phrasesList.forEach(p => {
-            const div = document.createElement('div');
-            div.className = 'item phrase';
-            div.innerHTML = `<div class="dot"></div> ${p}`;
-            div.onclick = () => selectPhrase(div, p);
-            pCol.appendChild(div);
+        phrases.forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'item phrase';
+            el.textContent = p;
+            el.onclick = () => {
+                if (!selected) return;
+                
+                if (pairs.find(pair => pair.v === selected.val && pair.p === p)) {
+                    el.classList.add('matched');
+                    selected.el.classList.add('matched');
+                } else {
+                    el.style.background = '#ffbaba';
+                    setTimeout(() => el.style.background = '', 400);
+                }
+                
+                selected.el.classList.remove('selected');
+                selected = null;
+            };
+            pCol.appendChild(el);
         });
-
-        resize();
-        window.addEventListener('resize', resize);
-    }
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        drawLines();
-    }
-
-    function selectVerb(element, val) {
-        if (element.classList.contains('matched')) return;
-        document.querySelectorAll('.verb').forEach(i => i.classList.remove('selected'));
-        element.classList.add('selected');
-        selectedVerb = { element, val };
-    }
-
-    function selectPhrase(element, val) {
-        if (!selectedVerb || element.classList.contains('matched')) return;
-
-        const isCorrect = pairs.find(p => p.v === selectedVerb.val && p.p === val);
-
-        if (isCorrect) {
-            element.classList.add('matched');
-            selectedVerb.element.classList.add('matched');
-            completedMatches.push({ from: selectedVerb.element, to: element });
-            drawLines();
-            checkWin();
-        } else {
-            element.style.background = 'rgba(255, 0, 0, 0.2)';
-            setTimeout(() => element.style.background = '', 400);
-        }
-
-        selectedVerb.element.classList.remove('selected');
-        selectedVerb = null;
-    }
-
-    function drawLines() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        
-        completedMatches.forEach(match => {
-            const fromRect = match.from.querySelector('.dot').getBoundingClientRect();
-            const toRect = match.to.querySelector('.dot').getBoundingClientRect();
-
-            ctx.beginPath();
-            ctx.strokeStyle = '#00ff88';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#00ff88';
-            ctx.moveTo(fromRect.left + 4, fromRect.top + 4);
-            ctx.lineTo(toRect.left + 4, toRect.top + 4);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-        });
-    }
-
-    function checkWin() {
-        if (completedMatches.length === pairs.length) {
-            setTimeout(() => {
-                document.getElementById('win-message').style.display = 'block';
-            }, 500);
-        }
     }
 
     init();
