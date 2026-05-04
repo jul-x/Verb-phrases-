@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Verb-Phrase Matcher</title>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --verb-color: #00d2ff;
+            --phrase-color: #ff0076;
+            --success: #00ff88;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        header {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        #game-container {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 40px;
+            align-items: stretch;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 10;
+            width: 40%;
+        }
+
+        .item {
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            user-select: none;
+            font-size: 14px;
+            font-weight: 600;
+            position: relative;
+        }
+
+        .verb { border-color: var(--verb-color); }
+        .phrase { border-color: var(--phrase-color); }
+
+        .item.selected {
+            background: white;
+            color: black;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255,255,255,0.4);
+        }
+
+        .item.matched {
+            opacity: 0.5;
+            border-color: var(--success);
+            pointer-events: none;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .verb .dot { right: -25px; box-shadow: 0 0 10px var(--verb-color); }
+        .phrase .dot { left: -25px; box-shadow: 0 0 10px var(--phrase-color); }
+
+        #win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--success);
+            color: black;
+            padding: 30px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: none;
+            z-index: 100;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2 style="margin:0; font-size: 1.2rem;">Match the Collocations</h2>
+    <p style="margin:5px 0 0; font-size: 0.8rem; opacity: 0.7;">Connect verbs to phrases</p>
+</header>
+
+<div id="game-container">
+    <canvas id="canvas"></canvas>
+    
+    <div class="column" id="verbs-col">
+        <!-- Verbs will be here -->
+    </div>
+
+    <div class="column" id="phrases-col">
+        <!-- Phrases will be here -->
+    </div>
+</div>
+
+<div id="win-message">
+    <h1>AMAZING! 🌟</h1>
+    <p>You matched everything correctly.</p>
+    <button onclick="location.reload()" style="padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Play Again</button>
+</div>
+
+<script>
+    // Правильные пары (основано на вашем фото)
+    const pairs = [
+        { v: "invite", p: "somebody to a restaurant" },
+        { v: "meet", p: "in a coffee bar" },
+        { v: "take", p: "somebody to dinner" },
+        { v: "knock", p: "on the door" },
+        { v: "play", p: "a song/CD" },
+        { v: "run", p: "across the road" },
+        { v: "be", p: "in a hurry" },
+        { v: "wait", p: "for somebody" },
+        { v: "try", p: "to stop" }
+    ];
+
+    // Располагаем ответы "далеко" (Глаголы по порядку, фразы — в обратном или специально перемешанном)
+    const verbsList = ["invite", "meet", "take", "knock", "play", "run", "be", "wait", "try"];
+    const phrasesList = ["for somebody", "to stop", "in a hurry", "across the road", "a song/CD", "on the door", "somebody to dinner", "in a coffee bar", "somebody to a restaurant"];
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let selectedVerb = null;
+    let completedMatches = [];
+
+    function init() {
+        const vCol = document.getElementById('verbs-col');
+        const pCol = document.getElementById('phrases-col');
+
+        verbsList.forEach(v => {
+            const div = document.createElement('div');
+            div.className = 'item verb';
+            div.innerHTML = `${v} <div class="dot"></div>`;
+            div.onclick = () => selectVerb(div, v);
+            vCol.appendChild(div);
+        });
+
+        phrasesList.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'item phrase';
+            div.innerHTML = `<div class="dot"></div> ${p}`;
+            div.onclick = () => selectPhrase(div, p);
+            pCol.appendChild(div);
+        });
+
+        resize();
+        window.addEventListener('resize', resize);
+    }
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        drawLines();
+    }
+
+    function selectVerb(element, val) {
+        if (element.classList.contains('matched')) return;
+        document.querySelectorAll('.verb').forEach(i => i.classList.remove('selected'));
+        element.classList.add('selected');
+        selectedVerb = { element, val };
+    }
+
+    function selectPhrase(element, val) {
+        if (!selectedVerb || element.classList.contains('matched')) return;
+
+        // Проверка правильности
+        const isCorrect = pairs.find(p => p.v === selectedVerb.val && p.p === val);
+
+        if (isCorrect) {
+            element.classList.add('matched');
+            selectedVerb.element.classList.add('matched');
+            completedMatches.push({
+                from: selectedVerb.element,
+                to: element
+            });
+            drawLines();
+            checkWin();
+        } else {
+            // Ошибка - визуальный эффект
+            element.style.borderColor = 'red';
+            setTimeout(() => element.style.borderColor = '', 500);
+        }
+
+        selectedVerb.element.classList.remove('selected');
+        selectedVerb = null;
+    }
+
+    function drawLines() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 3;
+        
+        completedMatches.forEach(match => {
+            const fromRect = match.from.querySelector('.dot').getBoundingClientRect();
+            const toRect = match.to.querySelector('.dot').getBoundingClientRect();
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#00ff88';
+            ctx.moveTo(fromRect.left + 5, fromRect.top + 5);
+            ctx.lineTo(toRect.left + 5, toRect.top + 5);
+            ctx.stroke();
+        });
+    }
+
+    function checkWin() {
+        if (completedMatches.length === pairs.length) {
+            setTimeout(() => {
+                document.getElementById('win-message').style.display = 'block';
+            }, 500);
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
