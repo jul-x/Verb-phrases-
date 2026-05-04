@@ -27,7 +27,7 @@
         header {
             text-align: center;
             padding: 15px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.03);
             backdrop-filter: blur(10px);
         }
 
@@ -36,7 +36,7 @@
             position: relative;
             display: flex;
             justify-content: space-between;
-            padding: 20px 40px;
+            padding: 20px 30px;
             align-items: stretch;
         }
 
@@ -53,110 +53,117 @@
             flex-direction: column;
             justify-content: space-between;
             z-index: 10;
-            width: 40%;
+            width: 42%;
         }
 
         .item {
-            padding: 12px 15px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 2px solid transparent;
+            padding: 14px 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: none; /* Убраны вертикальные полосы */
             border-radius: 12px;
             cursor: pointer;
             text-align: center;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             user-select: none;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
         }
 
-        .verb { border-color: var(--verb-color); }
-        .phrase { border-color: var(--phrase-color); }
-
         .item.selected {
-            background: white;
-            color: black;
+            background: rgba(255, 255, 255, 0.2);
             transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(255,255,255,0.4);
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
         }
 
         .item.matched {
-            opacity: 0.5;
-            border-color: var(--success);
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--success);
             pointer-events: none;
         }
 
+        /* Точки для соединения */
         .dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             background: white;
             border-radius: 50%;
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
+            opacity: 0.5;
         }
-
-        .verb .dot { right: -25px; box-shadow: 0 0 10px var(--verb-color); }
-        .phrase .dot { left: -25px; box-shadow: 0 0 10px var(--phrase-color); }
+        .verb .dot { right: -15px; }
+        .phrase .dot { left: -15px; }
 
         #win-message {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: var(--success);
-            color: black;
-            padding: 30px;
-            border-radius: 20px;
-            font-weight: bold;
+            background: #fff;
+            color: #000;
+            padding: 40px;
+            border-radius: 30px;
             display: none;
             z-index: 100;
             text-align: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .btn-restart {
+            margin-top: 20px;
+            padding: 12px 25px;
+            background: var(--success);
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
 <header>
-    <h2 style="margin:0; font-size: 1.2rem;">Match the Collocations</h2>
-    <p style="margin:5px 0 0; font-size: 0.8rem; opacity: 0.7;">Connect verbs to phrases</p>
+    <h2 style="margin:0; font-size: 1.1rem; letter-spacing: 1px;">MATCH THE PAIRS</h2>
 </header>
 
 <div id="game-container">
     <canvas id="canvas"></canvas>
     
-    <div class="column" id="verbs-col">
-        <!-- Verbs will be here -->
-    </div>
-
-    <div class="column" id="phrases-col">
-        <!-- Phrases will be here -->
-    </div>
+    <div class="column" id="verbs-col"></div>
+    <div class="column" id="phrases-col"></div>
 </div>
 
 <div id="win-message">
-    <h1>AMAZING! 🌟</h1>
-    <p>You matched everything correctly.</p>
-    <button onclick="location.reload()" style="padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Play Again</button>
+    <h1 style="margin: 0 0 10px;">EXCELLENT! 🌟</h1>
+    <p>All pairs are correct.</p>
+    <button class="btn-restart" onclick="location.reload()">Try Again</button>
 </div>
 
 <script>
-    // Правильные пары (основано на вашем фото)
+    // Обновленные пары согласно вашему новому списку
     const pairs = [
-        { v: "invite", p: "somebody to a restaurant" },
+        { v: "invite", p: "somebody to dinner" },
         { v: "meet", p: "in a coffee bar" },
-        { v: "take", p: "somebody to dinner" },
+        { v: "take", p: "somebody to a restaurant" },
         { v: "knock", p: "on the door" },
-        { v: "play", p: "a song/CD" },
+        { v: "play", p: "a song" },
         { v: "run", p: "across the road" },
         { v: "be", p: "in a hurry" },
         { v: "wait", p: "for somebody" },
         { v: "try", p: "to stop" }
     ];
 
-    // Располагаем ответы "далеко" (Глаголы по порядку, фразы — в обратном или специально перемешанном)
+    // Глаголы (по порядку)
     const verbsList = ["invite", "meet", "take", "knock", "play", "run", "be", "wait", "try"];
-    const phrasesList = ["for somebody", "to stop", "in a hurry", "across the road", "a song/CD", "on the door", "somebody to dinner", "in a coffee bar", "somebody to a restaurant"];
+    
+    // Фразы (перемешаны так, чтобы правильные ответы были далеко)
+    const phrasesList = ["for somebody", "to stop", "in a hurry", "across the road", "a song", "on the door", "somebody to a restaurant", "in a coffee bar", "somebody to dinner"];
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -203,22 +210,17 @@
     function selectPhrase(element, val) {
         if (!selectedVerb || element.classList.contains('matched')) return;
 
-        // Проверка правильности
         const isCorrect = pairs.find(p => p.v === selectedVerb.val && p.p === val);
 
         if (isCorrect) {
             element.classList.add('matched');
             selectedVerb.element.classList.add('matched');
-            completedMatches.push({
-                from: selectedVerb.element,
-                to: element
-            });
+            completedMatches.push({ from: selectedVerb.element, to: element });
             drawLines();
             checkWin();
         } else {
-            // Ошибка - визуальный эффект
-            element.style.borderColor = 'red';
-            setTimeout(() => element.style.borderColor = '', 500);
+            element.style.background = 'rgba(255, 0, 0, 0.2)';
+            setTimeout(() => element.style.background = '', 400);
         }
 
         selectedVerb.element.classList.remove('selected');
@@ -227,7 +229,8 @@
 
     function drawLines() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
         
         completedMatches.forEach(match => {
             const fromRect = match.from.querySelector('.dot').getBoundingClientRect();
@@ -235,9 +238,12 @@
 
             ctx.beginPath();
             ctx.strokeStyle = '#00ff88';
-            ctx.moveTo(fromRect.left + 5, fromRect.top + 5);
-            ctx.lineTo(toRect.left + 5, toRect.top + 5);
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00ff88';
+            ctx.moveTo(fromRect.left + 4, fromRect.top + 4);
+            ctx.lineTo(toRect.left + 4, toRect.top + 4);
             ctx.stroke();
+            ctx.shadowBlur = 0;
         });
     }
 
